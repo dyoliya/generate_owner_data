@@ -27,7 +27,10 @@ jobs:
 
       - name: Build executable with PyInstaller
         run: |
-          pyinstaller --onefile --noconsole --name generate_owner_data gui.py
+          pyinstaller --onefile --windowed --name generate_owner_data gui.py --clean \
+            --add-data "main.py;." \
+            --hidden-import pandas \
+            --hidden-import tqdm \
 
       - name: Create Release
         uses: softprops/action-gh-release@v1

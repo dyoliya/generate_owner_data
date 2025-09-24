@@ -1,6 +1,6 @@
 # -------------------------ABOUT --------------------------
 
-# pyinstaller --onefile --noconsole --name generate_owner_data gui.py
+# pyinstaller --onefile --windowed --name generate_owner_data gui.py --clean --add-data "main.py;." --hidden-import pandas --hidden-import tqdm
 # Tool: Generate Owner Data
 # Developer: dyoliya
 # Created: 2025-04-25
@@ -10,6 +10,7 @@
 # ---------------------------------------------------------
 
 import os
+import sys
 import pandas as pd
 import re
 import sqlite3
@@ -18,18 +19,36 @@ from tqdm import tqdm
 
 phone_cols = ['phone1', 'phone2', 'phone3', 'phone4', 'phone5']
 
+# ----------------------- DIRECTORIES -----------------------
+def exe_dir():
+    """Get folder where the exe (or script) is located"""
+    if getattr(sys, 'frozen', False):
+        return os.path.dirname(sys.executable)   # running as exe
+    return os.path.dirname(os.path.abspath(__file__))  # running as script
+
+BASE_DIR = exe_dir()
+
+INPUT_FOLDER = os.path.join(BASE_DIR, "files_to_process")
+OUTPUT_FOLDER = os.path.join(BASE_DIR, "results")
+BOTTOMS_UP_FOLDER = os.path.join(BASE_DIR, "bu_database")
+
+# Ensure folders exist
+os.makedirs(INPUT_FOLDER, exist_ok=True)
+os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+os.makedirs(BOTTOMS_UP_FOLDER, exist_ok=True)
+
 # ----------------------- FUNCTIONS -----------------------
 # load bottoms-up database
-def load_bottoms_up_db(bottoms_up_folder, logger=print):
-    db_files = [f for f in os.listdir(bottoms_up_folder) if f.endswith(".db")]
+def load_bottoms_up_db(BOTTOMS_UP_FOLDER, logger=print):
+    db_files = [f for f in os.listdir(BOTTOMS_UP_FOLDER) if f.endswith(".db")]
     if not db_files:
-        logger(f"No .db file found in {bottoms_up_folder}")
-        raise RuntimeError(f"No .db file found in {bottoms_up_folder}")
+        logger(f"No .db file found in {BOTTOMS_UP_FOLDER}")
+        raise RuntimeError(f"No .db file found in {BOTTOMS_UP_FOLDER}")
     elif len(db_files) > 1:
-        logger(f"Multiple .db files found in {bottoms_up_folder}, expected only one.")
-        raise RuntimeError(f"Multiple .db files found in {bottoms_up_folder}, expected only one.")
+        logger(f"Multiple .db files found in {BOTTOMS_UP_FOLDER}, expected only one.")
+        raise RuntimeError(f"Multiple .db files found in {BOTTOMS_UP_FOLDER}, expected only one.")
 
-    bottoms_up_db_path = os.path.join(bottoms_up_folder, db_files[0])
+    bottoms_up_db_path = os.path.join(BOTTOMS_UP_FOLDER, db_files[0])
 
     # Load bottoms_up table from SQLite database and standardize id columns
     conn = sqlite3.connect(bottoms_up_db_path)
@@ -144,18 +163,18 @@ def enrich_row(row, matched_row=None):
     return new_row
 
 # ------------------ MAIN SCRIPT ------------------
-def main(input_folder="files_to_process", output_folder="results", bottoms_up_folder="bu_database", logger=print, progress_callback=None):
-    for folder in [input_folder, output_folder, bottoms_up_folder]:
+def main(INPUT_FOLDER=INPUT_FOLDER, OUTPUT_FOLDER=OUTPUT_FOLDER, BOTTOMS_UP_FOLDER=BOTTOMS_UP_FOLDER, logger=print, progress_callback=None):
+    for folder in [INPUT_FOLDER, OUTPUT_FOLDER, BOTTOMS_UP_FOLDER]:
         os.makedirs(folder, exist_ok=True)
 
-    bottoms_up = load_bottoms_up_db(bottoms_up_folder, logger=logger)
+    bottoms_up = load_bottoms_up_db(BOTTOMS_UP_FOLDER, logger=logger)
     if bottoms_up is None: 
         return
 
     # Process input files if any
-    files = [f for f in os.listdir(input_folder) if f.endswith((".xlsx", ".csv"))]
+    files = [f for f in os.listdir(INPUT_FOLDER) if f.endswith((".xlsx", ".csv"))]
     if not files:
-        logger(f"No input files found in '{input_folder}'. Please add files to process.")
+        logger(f"No input files found in '{INPUT_FOLDER}'. Please add files to process.")
         return
     
     total_rows = 0
@@ -163,7 +182,7 @@ def main(input_folder="files_to_process", output_folder="results", bottoms_up_fo
     skipped_files = []
 
     for filename in files:
-        file_path = os.path.join(input_folder, filename)
+        file_path = os.path.join(INPUT_FOLDER, filename)
         if filename.endswith(".xlsx"):
             df = pd.read_excel(file_path, dtype=str)
         elif filename.endswith(".csv"):
@@ -191,7 +210,7 @@ def main(input_folder="files_to_process", output_folder="results", bottoms_up_fo
     
     processed_rows = 0
     for filename in files:
-        file_path = os.path.join(input_folder, filename)
+        file_path = os.path.join(INPUT_FOLDER, filename)
 
         # Detect file type
         if filename.endswith(".xlsx"):
@@ -283,7 +302,7 @@ def main(input_folder="files_to_process", output_folder="results", bottoms_up_fo
                         output_df["date_created"], errors="coerce"
                     ).dt.strftime("%Y-%m-%d").fillna("")
 
-                output_path = os.path.join(output_folder, f"output_{os.path.splitext(filename)[0]}{output_ext}")
+                output_path = os.path.join(OUTPUT_FOLDER, f"output_{os.path.splitext(filename)[0]}{output_ext}")
                 if output_ext == ".xlsx":
                     output_df.to_excel(output_path, index=False)
                 else:

@@ -28,8 +28,12 @@ class MinimalToolUI(ctk.CTk):
         self.wait_dots_running = False
         self.wait_popup_dots = 0
 
-        self.database_folder = "bu_database"
-        self.input_folder = "files_to_process"
+        base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+        self.database_folder = os.path.join(base_dir, "bu_database")
+        self.input_folder = os.path.join(base_dir, "files_to_process")
+
+        os.makedirs(self.database_folder, exist_ok=True)
+        os.makedirs(self.input_folder, exist_ok=True)
 
         # Title label
         self.title_label = ctk.CTkLabel(self,
@@ -362,13 +366,17 @@ class MinimalToolUI(ctk.CTk):
             if sys.stderr is None:
                 sys.stderr = io.StringIO()
 
+            base_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.path.dirname(os.path.abspath(__file__))
+            output_folder = os.path.join(base_dir, "results")
+
             generate_owner_data(
-                input_folder=self.input_folder,
-                output_folder="results",
-                bottoms_up_folder=self.database_folder,
+                INPUT_FOLDER=self.input_folder,
+                OUTPUT_FOLDER=output_folder,
+                BOTTOMS_UP_FOLDER=self.database_folder,
                 logger=self.log_message,
                 progress_callback=self.update_progress
             )
+
             self.dots_running = False
             self.close_wait_popup() 
             self.run_btn.configure(state="normal")
@@ -377,7 +385,6 @@ class MinimalToolUI(ctk.CTk):
 
             def ask_open_folder():
                 if messagebox.askyesno("Done", "Processing finished!\nOpen output folder?"):
-                    output_folder = os.path.abspath("results")
                     if not os.path.exists(output_folder):
                         os.makedirs(output_folder)
                     self.open_folder(output_folder)
