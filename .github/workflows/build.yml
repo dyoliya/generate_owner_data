@@ -26,11 +26,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Build executable with PyInstaller
-        run: |
-          pyinstaller --onefile --windowed --name generate_owner_data gui.py --clean \
-            --add-data "main.py;." \
-            --hidden-import pandas \
-            --hidden-import tqdm \
+        run: pyinstaller --onefile --windowed --name generate_owner_data gui.py --clean --add-data "main.py;." --hidden-import pandas --hidden-import tqdm
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
